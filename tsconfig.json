@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "outDir": "./bin/",
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "allowJs": true,
+    "esModuleInterop": true,
+    "rootDir": "src"
+  },
+  "exclude": [
+    "./bin_latex",
+    "./bin"
+  ]
+}
