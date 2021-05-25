@@ -25,7 +25,7 @@
 # Todo:
 - [X] vizualizace všech měření pomocí pyplotu
 - [X] zkontrolovat jestli je implementovaný algoritmus stejný s algoritmem na stránkách vyučujícího
-- [ ] dodělání různého parametru pro fptas (podle zadání)
+- [X] dodělání různého parametru pro fptas (podle zadání)
 - [ ] komentář k výsledkům měření
 - [ ] readme - napsat jak spustit a další podrobnosti
 - [ ] odstranit zbytečný kód
