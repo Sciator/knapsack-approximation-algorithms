@@ -10,21 +10,27 @@ try {
 } catch {
   console.warn("start with elevated privileges to have increased process priority");
 }
+const cpuCount = os.cpus().length;
 
 
 //#region settings
 
-const tries = 10_000;
+const tries = 1_000;
 const startingElements = 3;
 const maxElements = 200;
 const maxksS = [1];
 const ramdomnessValues = [.05, .1, .2];
 
+// if 0 cpu count is used
+const workersCountOverride = 12;
+const timeoutMs = .2 * 1_000;
+const minimalSuccessTries = .99;
+
 //#region settings
 
+const workersCount = workersCountOverride || cpuCount;
 
 // number of logical cpu availeble
-const cpuCount = os.cpus().length;
 
 type TSeqProps = { min: number, max: number, avg: number, med: number, qty: number };
 
@@ -40,11 +46,6 @@ type TBatchAnalyzed = {
   }
 }[];
 
-type TFileDataEntry = { options: TKnapsackGenerateOptions };
-const jsonFile = new JSONFile<TFileDataEntry>("data");
-
-const workersCount = cpuCount;
-const timeoutMs = 1 * 1_000;
 
 const fileData = new JSONFile<{
   tries: number,
@@ -165,7 +166,7 @@ const batchAnalyzedSave = (results: TBatchAnalyzed, generatorSettings: TKnapsack
 };
 
 const batchMakeOptions = (...generators: ((bo: TKnapsackGenerateOptions) => TKnapsackGenerateOptions[])[]) => {
-  let allBactchesOptions: TKnapsackGenerateOptions[] = ([{}] as TKnapsackGenerateOptions[])
+  let allBactchesOptions: TKnapsackGenerateOptions[] = ([{ ...KnapsackGenerator.defaults, randomness: { ...KnapsackGenerator.defaults.randomness } }] as TKnapsackGenerateOptions[])
   generators.forEach(generator => {
     allBactchesOptions = allBactchesOptions.map(bo => generator(bo).map(generated => ({ ...bo, ...generated }))).reduce(...reducerFlat());
   });
@@ -187,7 +188,7 @@ const batchMakeOptions = (...generators: ((bo: TKnapsackGenerateOptions) => TKna
 
   for (const batchOptions of allBactchesOptions) {
     algorithmsMaxElmCalculated = algorithmsMaxElmCalculated
-      .filter(({ max, name }) => max + 1 >= batchOptions.elements);
+      .filter(({ max, name }) => max + 3 >= batchOptions.elements);
     const batch = batchCreate(batchOptions, tries, algorithmsMaxElmCalculated.map(({ name }) => name));
 
     const [time] = await runWithTimeAsync(() =>
@@ -198,7 +199,7 @@ const batchMakeOptions = (...generators: ((bo: TKnapsackGenerateOptions) => TKna
     batchAnalyzedSave(analyzed, batchOptions, tries);
 
     analyzed.forEach(({ alg, res: { sucessTries } }) => {
-      if (sucessTries < tries * .05) return;
+      if (sucessTries < tries * minimalSuccessTries) return;
       const algMaxCalc = algorithmsMaxElmCalculated
         .find(({ name }) => name === alg);
       algMaxCalc.max = Math.max(batchOptions.elements, algMaxCalc.max);
