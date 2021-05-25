@@ -30,7 +30,7 @@ export const knapsackSolveDynamic = (ksp: Knapsack): boolean[] => {
       });
     };
 
-    const [subresPrev, subresCurr] = [subRes.length, subResNew.length];
+    // const [subresPrev, subresCurr] = [subRes.length, subResNew.length];
 
     removeDominated(subRes, subResNew);
     removeDominated(subResNew, subRes);

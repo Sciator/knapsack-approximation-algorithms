@@ -60,3 +60,9 @@ export const runWithTime = <T, TArgs extends any[]>(fnc: (...args: TArgs) => T, 
   return [t2 - t1, res];
 };
 
+export const runWithTimeAsync = async <T, TArgs extends any[]>(fnc: (...args: TArgs) => Promise<T>, ...args: TArgs): Promise<[number, T]> => {
+  const t1 = Date.now();
+  const res = await fnc(...args);
+  const t2 = Date.now();
+  return [t2 - t1, res];
+};

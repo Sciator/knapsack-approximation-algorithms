@@ -30,8 +30,7 @@
 - [ ] readme - napsat jak spustit a další podrobnosti
 - [ ] odstranit zbytečný kód
 - [ ] když zbyde čas tak provést měření na více PC
-- [ ] smazat git historii
-
+- [ ] building
 
 Zadání
 1. Naprogramujte FPTAS pro problém batohu (pseudokód je součástí prezentace na mých stránkách) 

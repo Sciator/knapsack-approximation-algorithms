@@ -3,7 +3,7 @@
   "main": "index.js",
   "scripts": {
     "tsc": "tsc",
-    "start": "nodemon ./src/index.ts",
+    "start": "tsc && node ./bin/index.js",
     "build": "tsc && pkg ./bin/index.js --out-path ./build/",
     "build-full": "npm i && tsc && npm run build"
   },

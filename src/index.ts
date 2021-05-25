@@ -1,6 +1,6 @@
 import { TKnapsackGenerateOptions, KnapsackGenerator, KnapsackGenerateInitialSortingAll, KnapsackRandomizingTypeAll } from "./knapsack/generator";
 import { EAlg, TProcessArgs, TProcesRes, algs } from "./process";
-import { range, sleepWithSkip, shuffle, average, median, zip, reducerFlat } from "./utils";
+import { range, sleepWithSkip, shuffle, average, median, zip, reducerFlat, runWithTimeAsync } from "./utils";
 import { fork, ChildProcess } from "child_process";
 import * as os from "os";
 import { Knapsack } from "./knapsack/knapsack";
@@ -10,6 +10,18 @@ try {
 } catch {
   console.warn("start with elevated privileges to have increased process priority");
 }
+
+
+//#region settings
+
+const tries = 10_000;
+const startingElements = 3;
+const maxElements = 200;
+const maxksS = [1];
+const ramdomnessValues = [.05, .1, .2];
+
+//#region settings
+
 
 // number of logical cpu availeble
 const cpuCount = os.cpus().length;
@@ -41,11 +53,11 @@ const fileData = new JSONFile<{
 }>("data");
 
 const analyzeSeq = (arr: number[]): TSeqProps =>
-  ({
-    min: Math.min(...arr), max: Math.max(...arr),
-    avg: average(arr), med: median(arr),
-    qty: arr.length,
-  })
+({
+  min: Math.min(...arr), max: Math.max(...arr),
+  avg: average(arr), med: median(arr),
+  qty: arr.length,
+})
   ;
 
 const batchCreate = (genProps: TKnapsackGenerateOptions, tries: number, alg: EAlg[]): TBatch =>
@@ -120,17 +132,17 @@ const batchAnalyze = (batch: TBatch, algs: EAlg[]): TBatchAnalyzed => {
     const profitBest = Math.max(...filtered.map(_ => _.profit));
     return res.filter(({ res: _ }) => _)
       .map(({ alg, res: { profit, time } }) =>
-        ({
-          alg, res: {
-            time, profitDif: {
-              fixed: profitBest - profit, proportional:
-                (profitBest === 0) ? 1
-                  : (profit === 0) ? null
-                    : profitBest / profit
-              ,
-            },
+      ({
+        alg, res: {
+          time, profitDif: {
+            fixed: profitBest - profit, proportional:
+              (profitBest === 0) ? 1
+                : (profit === 0) ? null
+                  : profitBest / profit
+            ,
           },
-        }))
+        },
+      }))
       ;
   }).filter(_ => _).reduce((a, b) => a.concat(b), []);
 
@@ -152,31 +164,24 @@ const batchAnalyzedSave = (results: TBatchAnalyzed, generatorSettings: TKnapsack
   fileData.write({ tries, generatorSettings, results });
 };
 
+const batchMakeOptions = (...generators: ((bo: TKnapsackGenerateOptions) => TKnapsackGenerateOptions[])[]) => {
+  let allBactchesOptions: TKnapsackGenerateOptions[] = ([{}] as TKnapsackGenerateOptions[])
+  generators.forEach(generator => {
+    allBactchesOptions = allBactchesOptions.map(bo => generator(bo).map(generated => ({ ...bo, ...generated }))).reduce(...reducerFlat());
+  });
+  return allBactchesOptions;
+}
+
 (async () => {
-  const tries = 1_000;
-  const startingElements = 3;
-  const allBactchesOptions: TKnapsackGenerateOptions[] = ([{}] as TKnapsackGenerateOptions[])
-    .map(bo => {
-      return range(startingElements, 200).map(elements => ({ ...bo, elements }) as TKnapsackGenerateOptions);
-    }).reduce(...reducerFlat())
-    .map(bo => {
-      return [1].map(ksS => ({ ...bo, ksS }) as TKnapsackGenerateOptions);
-    }).reduce(...reducerFlat())
-    .map(bo => {
-      return KnapsackGenerateInitialSortingAll.map(initialSorting =>
-        ({ ...bo, initialSorting }) as TKnapsackGenerateOptions);
-    }).reduce(...reducerFlat())
-    .map(bo => {
-      return [.05, .1, .2].map(randomnessVal =>
-        ({ ...bo, randomness: { value: randomnessVal } }) as TKnapsackGenerateOptions);
-    }).reduce(...reducerFlat())
-    .map(bo => {
-      return KnapsackRandomizingTypeAll.map(randomnessType => ({
-        ...bo,
-        randomness: { ...bo.randomness, type: randomnessType },
-      }) as TKnapsackGenerateOptions);
-    }).reduce(...reducerFlat())
-    ;
+  const allBactchesOptions = batchMakeOptions(
+    () => range(startingElements, maxElements).map(x => ({ elements: x })),
+    () => maxksS.map(ksS => ({ ksS })),
+    () => KnapsackGenerateInitialSortingAll.map(initialSorting => ({ initialSorting })),
+    () => ramdomnessValues.map(randomnessVal => ({ randomness: { value: randomnessVal, type: undefined as any } })),
+    bo => KnapsackRandomizingTypeAll.map(randomnessType => ({
+      randomness: { ...bo.randomness, type: randomnessType },
+    })),
+  );
 
   let algorithmsMaxElmCalculated = algs.map(({ name }) => ({ name, max: startingElements - 1 }));
 
@@ -185,9 +190,10 @@ const batchAnalyzedSave = (results: TBatchAnalyzed, generatorSettings: TKnapsack
       .filter(({ max, name }) => max + 1 >= batchOptions.elements);
     const batch = batchCreate(batchOptions, tries, algorithmsMaxElmCalculated.map(({ name }) => name));
 
-    const t1 = Date.now();
-    await batchRun(batch);
-    const t2 = Date.now();
+    const [time] = await runWithTimeAsync(() =>
+      batchRun(batch)
+    );
+
     const analyzed = batchAnalyze(batch, algorithmsMaxElmCalculated.map(({ name }) => name));
     batchAnalyzedSave(analyzed, batchOptions, tries);
 
@@ -198,12 +204,12 @@ const batchAnalyzedSave = (results: TBatchAnalyzed, generatorSettings: TKnapsack
       algMaxCalc.max = Math.max(batchOptions.elements, algMaxCalc.max);
     });
 
-    console.log(`batch done in ${(t2 - t1).toString(10).padStart(7, " ")} with elms ${
-      batchOptions.elements.toString(10).padStart(4, " ")
-      } with algs ${
-      algorithmsMaxElmCalculated.map(x => x.name).join(", ")}`);
-  }
 
+    const timeStr = time.toString(10).padStart(7, " ");
+    const elmStr = batchOptions.elements.toString(10).padStart(4, " ");
+    const algStr = algorithmsMaxElmCalculated.map(x => x.name).join(", ");
+    console.log(`batch done in ${timeStr} with elms ${elmStr} with algs ${algStr}`);
+  }
 })();
 
 
