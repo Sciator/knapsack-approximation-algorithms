@@ -15,16 +15,16 @@ const cpuCount = os.cpus().length;
 
 //#region settings
 
-const tries = 1_000;
-const startingElements = 3;
-const maxElements = 200;
-const maxksS = [1];
+const tries = 300;
+const elementsStarting = 10;
+const elementsMax = 200;
+const maxksS = [10];
 const ramdomnessValues = [.05, .1, .2];
 
 // if 0 cpu count is used
-const workersCountOverride = 12;
-const timeoutMs = .2 * 1_000;
-const minimalSuccessTries = .99;
+const workersCountOverride = 14;
+const timeoutMs = .25 * 1_000;
+const minimalSuccessTries = .95;
 
 //#region settings
 
@@ -175,7 +175,7 @@ const batchMakeOptions = (...generators: ((bo: TKnapsackGenerateOptions) => TKna
 
 (async () => {
   const allBactchesOptions = batchMakeOptions(
-    () => range(startingElements, maxElements).map(x => ({ elements: x })),
+    () => range(elementsStarting, elementsMax).map(x => ({ elements: x })),
     () => maxksS.map(ksS => ({ ksS })),
     () => KnapsackGenerateInitialSortingAll.map(initialSorting => ({ initialSorting })),
     () => ramdomnessValues.map(randomnessVal => ({ randomness: { value: randomnessVal, type: undefined as any } })),
@@ -184,11 +184,16 @@ const batchMakeOptions = (...generators: ((bo: TKnapsackGenerateOptions) => TKna
     })),
   );
 
-  let algorithmsMaxElmCalculated = algs.map(({ name }) => ({ name, max: startingElements - 1 }));
+  let algorithmsMaxElmCalculated = algs.map(({ name }) => ({ name, max: elementsStarting - 1 }));
 
   for (const batchOptions of allBactchesOptions) {
+    const skipped = algorithmsMaxElmCalculated
+      .filter(({ max, name }) => !(max + 1 >= batchOptions.elements))
+    if (skipped.length)
+      console.log(`skipping ${skipped.map(x => x.name).join(", ")}`);
+
     algorithmsMaxElmCalculated = algorithmsMaxElmCalculated
-      .filter(({ max, name }) => max + 3 >= batchOptions.elements);
+      .filter(({ max, name }) => max + 1 >= batchOptions.elements);
     const batch = batchCreate(batchOptions, tries, algorithmsMaxElmCalculated.map(({ name }) => name));
 
     const [time] = await runWithTimeAsync(() =>

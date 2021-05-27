@@ -1,6 +1,7 @@
 import { knapsackEvaulate, Knapsack, knapsackEmptySolution } from "./knapsack";
 import { sortWithUnsorter, range } from "../utils";
 
+// todo: is working ?
 export const knapsackSolveDynamicMat = (ksp: Knapsack): boolean[] => {
   const { items } = ksp;
   const n = ksp.items.length;
